@@ -1,70 +1,30 @@
-const express = require('express');
-const { productsRouter, products } = require('./routes/products');
-const handlebars = require('express-handlebars');
-const { Server } = require("socket.io");
-const { options } = require("./config/databaseConfig");
-const { ContenedorSQL } = require("./controller/contenedorSQL");
-
-//service
-// const productosApi = new Contenedor("productos.txt");
-const productosApi = new ContenedorSQL(options.mariaDB, "productos");
-// const chatApi = new ContenedorChat("chat.txt");
-const chatApi = new ContenedorSQL(options.sqliteDB, "chat");
-
-//server
+import * as dotenv from 'dotenv'
+dotenv.config();
+import express from "express";
+import {  PRODUCTS_ROUTER }  from './src/routers/product.routes.js';
+import { CART_ROUTER }  from './src/routers/cart.routes.js';
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }))
-app.use(express.static(__dirname + '/public'))
-
-//configuracion template engine handlebars
-app.engine('handlebars', handlebars.engine());
-app.set('views', __dirname + '/views');
-app.set('view engine', 'handlebars');
-
-// routes
-//view routes
-app.get('/', async (req, res) => {
-    res.render('home')
-})
-
-app.get('/productos', async (req, res) => {
-    res.render('products', { products: await productosApi.getAll() })
-})
-
-//api routes
-app.use('/api/products', productsRouter);
+const PORT = process.env.PORT || 8080;
+import { Error } from './src/constants/config.js';
 
 
-//express server
-const server = app.listen(8080, () => {
-    console.log('listening on port 8080')
-})
-
-
-//websocket server
-const io = new Server(server);
-
-//configuracion websocket
-io.on("connection", async (socket) => {
-    //PRODUCTOS
-    //envio de los productos al socket que se conecta.
-    io.sockets.emit("products", await productosApi.getAll())
-
-    //recibimos el producto nuevo del cliente y lo guardamos con filesystem
-    socket.on("newProduct", async (data) => {
-        await productosApi.save(data);
-        //despues de guardar un nuevo producto, enviamos el listado de productos actualizado a todos los sockets conectados
-        io.sockets.emit("products", await productosApi.getAll())
-    })
-
-    //CHAT
-    //Envio de todos los mensajes al socket que se conecta.
-    io.sockets.emit("messages", await chatApi.getAll());
-
-    //recibimos el mensaje del usuario y lo guardamos en el archivo chat.txt
-    socket.on("newMessage", async (newMsg) => {
-        await chatApi.save(newMsg);
-        io.sockets.emit("messages", await chatApi.getAll());
-    })
+app.get("/", (req, res) => {
+    res.send('<h1 style="color:black"> Bienvenidos al Servidor Express </h1>');
 });
+
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/api/productos", PRODUCTS_ROUTER);
+app.use("/api/carrito", CART_ROUTER);
+
+app.get('*', function (req, res){
+    return Error.notImplemented(req, res);
+});
+
+const server = app.listen(PORT, () => {
+    console.log("Server online on: ", `http://localhost:${PORT}`);
+});
+
+server.on("error", (error) => console.log("Error en servidor", error));
