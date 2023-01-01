@@ -35,6 +35,5 @@ export {
     getProducts,
     appendProduct,
     updateProduct,
-    
     removeProduct
 };
